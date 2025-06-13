@@ -11,7 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // reCAPTCHA configuration
-const RECAPTCHA_SECRET_KEY = '6LeWol8rAAAAAOV_LTrxlVnqlOSsHsbpzZMwiLBV';
+const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY;
 const RECAPTCHA_VERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify';
 
 // reCAPTCHA verification middleware
@@ -69,6 +69,7 @@ const corsOptions = {
     }
   },
   credentials: true,
+  allowedHeaders: ['Content-Type', 'Accept', 'x-recaptcha-token'],
   optionsSuccessStatus: 200
 };
 
