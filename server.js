@@ -4,10 +4,51 @@ const helmet = require('helmet');
 const compression = require('compression');
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// reCAPTCHA configuration
+const RECAPTCHA_SECRET_KEY = '6LeWol8rAAAAAOV_LTrxlVnqlOSsHsbpzZMwiLBV';
+const RECAPTCHA_VERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify';
+
+// reCAPTCHA verification middleware
+const verifyRecaptcha = async (req, res, next) => {
+  const recaptchaToken = req.headers['x-recaptcha-token'];
+  
+  if (!recaptchaToken) {
+    return res.status(400).json({
+      success: false,
+      message: 'reCAPTCHA token is required'
+    });
+  }
+
+  try {
+    const response = await axios.post(RECAPTCHA_VERIFY_URL, null, {
+      params: {
+        secret: RECAPTCHA_SECRET_KEY,
+        response: recaptchaToken
+      }
+    });
+
+    if (!response.data.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'reCAPTCHA verification failed'
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('reCAPTCHA verification error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error verifying reCAPTCHA'
+    });
+  }
+};
 
 // Middleware
 app.use(helmet());
@@ -75,7 +116,7 @@ app.get('/api/metadata', (req, res) => {
 });
 
 // 2. API tra cứu điểm theo SBD
-app.get('/api/student/:sbd', (req, res) => {
+app.get('/api/student/:sbd', verifyRecaptcha, (req, res) => {
   try {
     const { sbd } = req.params;
     
@@ -112,7 +153,7 @@ app.get('/api/student/:sbd', (req, res) => {
 });
 
 // 3. API tìm kiếm nhiều thí sinh
-app.post('/api/students/search', (req, res) => {
+app.post('/api/students/search', verifyRecaptcha, (req, res) => {
   try {
     const { sbds } = req.body;
     
