@@ -12,31 +12,33 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(helmet());
 
-// Chặn truy cập từ domain khác ngoài diem10na.vercel.app
-app.use((req, res, next) => {
-  const allowedOrigins = ['https://diem10na.vercel.app', 'http://localhost:3000'];
-  const origin = req.get('Origin');
-  if (origin && !allowedOrigins.includes(origin)) {
-    return res.status(403).json({
-      success: false,
-      message: 'Forbidden: Không có quyền truy cập API'
-    });
-  }
-  next();
-});
-
-app.use(cors({
+// Cấu hình CORS
+const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = ['https://diem10na.vercel.app', 'http://localhost:3000'];
-    // Cho phép nếu không có origin (ví dụ: request từ Postman) hoặc origin hợp lệ
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error('Forbidden: Không có quyền truy cập API'));
     }
   },
-  credentials: true
-}));
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+
+// Xử lý lỗi CORS
+app.use((err, req, res, next) => {
+  if (err.message === 'Forbidden: Không có quyền truy cập API') {
+    return res.status(403).json({
+      success: false,
+      message: err.message
+    });
+  }
+  next(err);
+});
+
 app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
