@@ -19,7 +19,7 @@ const verifyRecaptcha = async (req, res, next) => {
   const recaptchaToken = req.headers['x-recaptcha-token'];
   
   if (!recaptchaToken) {
-    return res.status(400).json({
+    return res.status(403).json({
       success: false,
       message: 'reCAPTCHA token is required'
     });
@@ -34,18 +34,23 @@ const verifyRecaptcha = async (req, res, next) => {
     });
 
     if (!response.data.success) {
-      return res.status(400).json({
+      console.error('reCAPTCHA verification failed:', response.data['error-codes']);
+      return res.status(403).json({
         success: false,
-        message: 'reCAPTCHA verification failed'
+        message: 'reCAPTCHA verification failed',
+        errors: response.data['error-codes']
       });
     }
 
+    // Add reCAPTCHA score to request for potential future use
+    req.recaptchaScore = response.data.score;
     next();
   } catch (error) {
-    console.error('reCAPTCHA verification error:', error);
+    console.error('reCAPTCHA verification error:', error.message);
     return res.status(500).json({
       success: false,
-      message: 'Error verifying reCAPTCHA'
+      message: 'Error verifying reCAPTCHA',
+      error: error.message
     });
   }
 };
