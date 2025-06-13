@@ -4,56 +4,10 @@ const helmet = require('helmet');
 const compression = require('compression');
 const fs = require('fs');
 const path = require('path');
-const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-
-// reCAPTCHA configuration
-const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY;
-const RECAPTCHA_VERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify';
-
-// reCAPTCHA verification middleware
-const verifyRecaptcha = async (req, res, next) => {
-  const recaptchaToken = req.headers['x-recaptcha-token'];
-  
-  if (!recaptchaToken) {
-    return res.status(403).json({
-      success: false,
-      message: 'reCAPTCHA token is required'
-    });
-  }
-
-  try {
-    const response = await axios.post(RECAPTCHA_VERIFY_URL, null, {
-      params: {
-        secret: RECAPTCHA_SECRET_KEY,
-        response: recaptchaToken
-      }
-    });
-
-    if (!response.data.success) {
-      console.error('reCAPTCHA verification failed:', response.data['error-codes']);
-      return res.status(403).json({
-        success: false,
-        message: 'reCAPTCHA verification failed',
-        errors: response.data['error-codes']
-      });
-    }
-
-    // Add reCAPTCHA score to request for potential future use
-    req.recaptchaScore = response.data.score;
-    next();
-  } catch (error) {
-    console.error('reCAPTCHA verification error:', error.message);
-    return res.status(500).json({
-      success: false,
-      message: 'Error verifying reCAPTCHA',
-      error: error.message
-    });
-  }
-};
 
 // Middleware
 app.use(helmet());
@@ -69,7 +23,6 @@ const corsOptions = {
     }
   },
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Accept', 'x-recaptcha-token'],
   optionsSuccessStatus: 200
 };
 
@@ -122,7 +75,7 @@ app.get('/api/metadata', (req, res) => {
 });
 
 // 2. API tra cứu điểm theo SBD
-app.get('/api/student/:sbd', verifyRecaptcha, (req, res) => {
+app.get('/api/student/:sbd', (req, res) => {
   try {
     const { sbd } = req.params;
     
@@ -159,7 +112,7 @@ app.get('/api/student/:sbd', verifyRecaptcha, (req, res) => {
 });
 
 // 3. API tìm kiếm nhiều thí sinh
-app.post('/api/students/search', verifyRecaptcha, (req, res) => {
+app.post('/api/students/search', (req, res) => {
   try {
     const { sbds } = req.body;
     
@@ -212,7 +165,7 @@ app.get('/api/statistics/score-range', (req, res) => {
     const studentsInRange = [];
     let maxFound = null;
     let minFound = null;
-
+    
     Object.entries(scoreData.students).forEach(([sbd, student]) => {
       const totalScore = parseFloat(student.tong_diem);
       if (!isNaN(totalScore) && totalScore >= minScore && totalScore <= maxScore) {
@@ -301,9 +254,9 @@ app.get('/api/top-scores', (req, res) => {
 
     const allStudents = Object.entries(scoreData.students)
       .map(([sbd, student]) => ({
-        sbd: sbd,
-        ...student,
-        tong_diem_num: parseFloat(student.tong_diem)
+      sbd: sbd,
+      ...student,
+      tong_diem_num: parseFloat(student.tong_diem)
       }))
       .filter(student => !isNaN(student.tong_diem_num) && student.tong_diem_num >= 0 && student.tong_diem_num <= 30);
 
