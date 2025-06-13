@@ -1,0 +1,11 @@
+# Bỏ qua thư mục build
+/build/
+
+# Bỏ qua file log
+*.log
+
+# Bỏ qua thư mục node_modules (dự án Node.js)
+node_modules/
+
+# Bỏ qua file môi trường
+.env
