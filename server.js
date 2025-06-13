@@ -11,6 +11,20 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(helmet());
+
+// Chặn truy cập từ domain khác ngoài diem10na.vercel.app
+app.use((req, res, next) => {
+  const allowedOrigin = 'https://diem10na.vercel.app';
+  const origin = req.get('Origin');
+  if (origin !== allowedOrigin) {
+    return res.status(403).json({
+      success: false,
+      message: 'Forbidden: Không có quyền truy cập API'
+    });
+  }
+  next();
+});
+
 app.use(cors({
   origin: 'https://diem10na.vercel.app',
   credentials: true
