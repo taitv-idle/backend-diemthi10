@@ -14,9 +14,9 @@ app.use(helmet());
 
 // Chặn truy cập từ domain khác ngoài diem10na.vercel.app
 app.use((req, res, next) => {
-  const allowedOrigin = 'https://diem10na.vercel.app';
+  const allowedOrigins = ['https://diem10na.vercel.app', 'http://localhost:3000'];
   const origin = req.get('Origin');
-  if (origin !== allowedOrigin) {
+  if (origin && !allowedOrigins.includes(origin)) {
     return res.status(403).json({
       success: false,
       message: 'Forbidden: Không có quyền truy cập API'
@@ -26,7 +26,15 @@ app.use((req, res, next) => {
 });
 
 app.use(cors({
-  origin: 'https://diem10na.vercel.app',
+  origin: function (origin, callback) {
+    const allowedOrigins = ['https://diem10na.vercel.app', 'http://localhost:3000'];
+    // Cho phép nếu không có origin (ví dụ: request từ Postman) hoặc origin hợp lệ
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(compression());
@@ -149,19 +157,22 @@ app.post('/api/students/search', (req, res) => {
 app.get('/api/statistics/score-range', (req, res) => {
   try {
     const { min, max } = req.query;
-    
     const minScore = parseFloat(min) || 0;
     const maxScore = parseFloat(max) || 30;
 
     const studentsInRange = [];
-    
+    let maxFound = null;
+    let minFound = null;
+
     Object.entries(scoreData.students).forEach(([sbd, student]) => {
       const totalScore = parseFloat(student.tong_diem);
-      if (totalScore >= minScore && totalScore <= maxScore) {
+      if (!isNaN(totalScore) && totalScore >= minScore && totalScore <= maxScore) {
         studentsInRange.push({
           sbd: sbd,
           ...student
         });
+        maxFound = maxFound === null ? totalScore : Math.max(maxFound, totalScore);
+        minFound = minFound === null ? totalScore : Math.min(minFound, totalScore);
       }
     });
 
@@ -170,6 +181,8 @@ app.get('/api/statistics/score-range', (req, res) => {
       data: {
         range: `${minScore} - ${maxScore}`,
         count: studentsInRange.length,
+        max_score: maxFound,
+        min_score: minFound,
         students: studentsInRange
       }
     });
@@ -237,11 +250,13 @@ app.get('/api/top-scores', (req, res) => {
     const { limit = 10 } = req.query;
     const limitNum = parseInt(limit);
 
-    const allStudents = Object.entries(scoreData.students).map(([sbd, student]) => ({
-      sbd: sbd,
-      ...student,
-      tong_diem_num: parseFloat(student.tong_diem)
-    }));
+    const allStudents = Object.entries(scoreData.students)
+      .map(([sbd, student]) => ({
+        sbd: sbd,
+        ...student,
+        tong_diem_num: parseFloat(student.tong_diem)
+      }))
+      .filter(student => !isNaN(student.tong_diem_num) && student.tong_diem_num >= 0 && student.tong_diem_num <= 30);
 
     const topStudents = allStudents
       .sort((a, b) => b.tong_diem_num - a.tong_diem_num)
