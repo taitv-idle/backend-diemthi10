@@ -7,7 +7,7 @@ const path = require('path');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(helmet());
@@ -169,35 +169,39 @@ app.get('/api/statistics/score-range', (req, res) => {
 app.get('/api/statistics/by-council/:ma_hd', (req, res) => {
   try {
     const { ma_hd } = req.params;
-    
+
     const studentsInCouncil = [];
     let totalScore = 0;
-    let maxScore = 0;
-    let minScore = 30;
+    let maxScore = null;
+    let minScore = null;
+    let validScoresCount = 0;
 
     Object.entries(scoreData.students).forEach(([sbd, student]) => {
-      if (student.ma_hd === ma_hd) {
+      if (parseInt(student.ma_hd) === parseInt(ma_hd)) {
         const score = parseFloat(student.tong_diem);
         studentsInCouncil.push({
           sbd: sbd,
           ...student
         });
-        totalScore += score;
-        maxScore = Math.max(maxScore, score);
-        minScore = Math.min(minScore, score);
+        if (!isNaN(score)) {
+          totalScore += score;
+          maxScore = maxScore === null ? score : Math.max(maxScore, score);
+          minScore = minScore === null ? score : Math.min(minScore, score);
+          validScoresCount++;
+        }
       }
     });
 
-    const avgScore = studentsInCouncil.length > 0 ? (totalScore / studentsInCouncil.length).toFixed(2) : 0;
+    const avgScore = validScoresCount > 0 ? (totalScore / validScoresCount).toFixed(2) : null;
 
     res.json({
       success: true,
       data: {
         ma_hd: ma_hd,
         total_students: studentsInCouncil.length,
-        avg_score: parseFloat(avgScore),
-        max_score: maxScore > 0 ? maxScore : null,
-        min_score: minScore < 30 ? minScore : null,
+        avg_score: avgScore !== null ? parseFloat(avgScore) : null,
+        max_score: maxScore,
+        min_score: minScore,
         students: studentsInCouncil
       }
     });
@@ -290,9 +294,11 @@ app.use((error, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
-  console.log(`📖 API Documentation: http://localhost:${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
+    console.log(`📖 API Documentation: http://localhost:${PORT}`);
+  });
+}
 
 module.exports = app; 

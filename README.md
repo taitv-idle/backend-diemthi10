@@ -22,7 +22,7 @@ npm run dev
 npm start
 ```
 
-Server sẽ chạy tại: `http://localhost:3000`
+Server sẽ chạy tại: `http://localhost:5000`
 
 ## 📚 API Endpoints
 
